@@ -1,8 +1,8 @@
 apiVersion: v2
 name: oauth2-proxy
 description: OAuth2-Proxy (upstream chart + 1Password credentials). GitHub OAuth; use your own redirect URL, cookie domain, and secret.
-version: v7.10.2
-appVersion: "7.10.2"
+version: 1.0.0
+appVersion: "1.0.0"
 keywords:
   - oauth2-proxy
   - oauth
