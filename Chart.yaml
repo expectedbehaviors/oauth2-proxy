@@ -1,0 +1,21 @@
+apiVersion: v2
+name: oauth2-proxy
+description: OAuth2-Proxy (upstream chart + 1Password credentials). GitHub OAuth; use your own redirect URL, cookie domain, and secret.
+version: v7.10.2
+appVersion: "7.10.2"
+keywords:
+  - oauth2-proxy
+  - oauth
+  - auth
+  - nginx
+home: https://github.com/oauth2-proxy/oauth2-proxy
+sources:
+  - https://github.com/oauth2-proxy/oauth2-proxy
+dependencies:
+  - name: oauth2-proxy
+    alias: oauth2
+    version: v7.10.2
+    repository: https://oauth2-proxy.github.io/manifests
+  - name: onepassworditem
+    version: "1.1.1"
+    repository: https://expectedbehaviors.github.io/OnePasswordItem-helm
