@@ -11,6 +11,64 @@ Baseline for [OAuth2-Proxy](https://github.com/oauth2-proxy/oauth2-proxy) with G
 
 All inputs: **`oauth2.config`** (configFile, existingSecret), **`oauth2.ingress`**, **`oauth2.extraEnv`**, **`oauth2.deploymentAnnotations`**, **`onepassworditem.enabled`**, **`onepassworditem.items`**. Defaults: see `values.yaml`.
 
+## Configuration reference (all inputs)
+
+Every value accepted by this chart is documented below. Values are grouped by subchart. Source: upstream [oauth2-proxy/manifests](https://github.com/oauth2-proxy/manifests) (as `oauth2.*`) and [expectedbehaviors/OnePasswordItem-helm](https://github.com/expectedbehaviors/OnePasswordItem-helm) (as `onepassworditem.*`).
+
+### Subchart: oauth2 (upstream oauth2-proxy)
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `oauth2.global.imageRegistry` | string | `""` | Global image registry. |
+| `oauth2.global.imagePullSecrets` | list | `[]` | Image pull secrets. |
+| `oauth2.config.annotations` | object | `{}` | Config annotations. |
+| `oauth2.config.clientID` | string | `"XXXXXXX"` | OAuth client ID (prefer `existingSecret`). |
+| `oauth2.config.clientSecret` | string | `"XXXXXXXX"` | OAuth client secret (prefer `existingSecret`). |
+| `oauth2.config.cookieSecret` | string | — | Cookie secret (prefer `existingSecret`). |
+| `oauth2.config.requiredSecretKeys` | list | `[client-id, client-secret, cookie-secret]` | Secret keys to expose as env. |
+| `oauth2.config.existingSecret` | string | — | Use existing Secret for OAuth credentials (recommended; use onepassworditem to create it). |
+| `oauth2.config.cookieName` | string | `""` | Cookie name (defaults to release name). |
+| `oauth2.config.configFile` | string | — | Full oauth2_proxy config file (provider, redirect_url, cookie_domains, etc.). |
+| `oauth2.config.existingConfig` | string | — | Use existing ConfigMap for config. |
+| `oauth2.extraArgs` | object | `{}` | Extra container args. |
+| `oauth2.extraEnv` | list | `[]` | Extra env vars (e.g. `OAUTH2_PROXY_GITHUB_USERS`). |
+| `oauth2.image.registry` | string | `""` | Image registry. |
+| `oauth2.image.repository` | string | `"oauth2-proxy/oauth2-proxy"` | Image repository. |
+| `oauth2.image.tag` | string | `""` | Image tag (defaults to appVersion). |
+| `oauth2.image.pullPolicy` | string | `"IfNotPresent"` | Pull policy. |
+| `oauth2.service.type` | string | `"ClusterIP"` | Service type. |
+| `oauth2.service.portNumber` | number | `80` | Service port (4180 for upstream default). |
+| `oauth2.ingress.enabled` | bool | `false` | Enable Ingress. |
+| `oauth2.ingress.hosts` | list | — | Hosts (e.g. `[auth.example.com]`). |
+| `oauth2.ingress.path` | string | `"/"` | Path (e.g. `/oauth2`). |
+| `oauth2.ingress.pathType` | string | `"ImplementationSpecific"` | Path type (e.g. `Prefix`). |
+| `oauth2.ingress.annotations` | object | `{}` | Ingress annotations. |
+| `oauth2.ingress.tls` | list | `[]` | TLS (secretName, hosts). |
+| `oauth2.deploymentAnnotations` | object | `{}` | Annotations on Deployment (e.g. Reloader). |
+| `oauth2.replicaCount` | int | `1` | Replicas. |
+| `oauth2.autoscaling.enabled` | bool | `false` | Enable HPA. |
+| `oauth2.autoscaling.minReplicas` | int | `1` | HPA min replicas. |
+| `oauth2.autoscaling.maxReplicas` | int | `10` | HPA max replicas. |
+| `oauth2.autoscaling.targetCPUUtilizationPercentage` | int | `80` | HPA target CPU. |
+| `oauth2.resources` | object | `{}` | Container resources. |
+| `oauth2.podSecurityContext` | object | `{}` | Pod security context. |
+| `oauth2.securityContext` | object | — | Container security context (runAsNonRoot, readOnlyRootFilesystem, etc.). |
+| `oauth2.livenessProbe` | object | — | Liveness probe. |
+| `oauth2.readinessProbe` | object | — | Readiness probe. |
+| `oauth2.extraVolumes` | list | `[]` | Extra volumes. |
+| `oauth2.extraVolumeMounts` | list | `[]` | Extra volume mounts. |
+| `oauth2.podDisruptionBudget.enabled` | bool | `true` | Enable PDB. |
+| `oauth2.metrics.enabled` | bool | `true` | Enable Prometheus metrics. |
+| `oauth2.sessionStorage.type` | string | `"cookie"` | Session storage (cookie or redis). |
+
+### Subchart: onepassworditem
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `onepassworditem.enabled` | bool | `true` | Create OnePasswordItem resources; set `false` if you supply the secret another way. |
+| `onepassworditem.defaultVault` | string | `""` | Default vault (id or title) for items that don't set `vault`. |
+| `onepassworditem.items` | list | `[]` | List of `{ item, name, type }`; optional per-item `vault`, `namespace`, `annotations`, `labels`. `name` must match `oauth2.config.existingSecret`. |
+
 ## Chart contents
 
 - **OAuth2-Proxy:** Upstream subchart; config via `oauth2.config.configFile` and `oauth2.extraEnv`; credentials from existing secret (e.g. `oauth2-proxy-secret`).
