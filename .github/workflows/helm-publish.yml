@@ -37,4 +37,5 @@ jobs:
           helm_repo_url: https://oauth2-proxy.github.io/manifests
           helm_repo_name_2: onepassworditem
           helm_repo_url_2: https://expectedbehaviors.github.io/OnePasswordItem-helm
+          tag_version_prefix: "oauth2-proxy-v"
           release_tag: ${{ github.event.inputs.release_tag }}
