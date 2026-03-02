@@ -2,6 +2,15 @@
 
 Baseline for [OAuth2-Proxy](https://github.com/oauth2-proxy/oauth2-proxy) with GitHub OAuth and 1Password-backed secrets. Uses upstream chart plus [expectedbehaviors/OnePasswordItem-helm](https://github.com/expectedbehaviors/OnePasswordItem-helm). No sensitive values in defaults.
 
+## Subcharts
+
+| Subchart | Source | Values prefix | Description |
+|----------|--------|---------------|-------------|
+| **oauth2** (oauth2-proxy) | [oauth2-proxy/manifests](https://github.com/oauth2-proxy/manifests) | `oauth2.*` | Upstream OAuth2-Proxy: config, ingress, deployment, autoscaling. |
+| **onepassworditem** | [expectedbehaviors/OnePasswordItem-helm](https://github.com/expectedbehaviors/OnePasswordItem-helm) | `onepassworditem.*` | Syncs 1Password item into a Secret for client-id, client-secret, cookie-secret. |
+
+All inputs: **`oauth2.config`** (configFile, existingSecret), **`oauth2.ingress`**, **`oauth2.extraEnv`**, **`oauth2.deploymentAnnotations`**, **`onepassworditem.enabled`**, **`onepassworditem.items`**. Defaults: see `values.yaml`.
+
 ## Chart contents
 
 - **OAuth2-Proxy:** Upstream subchart; config via `oauth2.config.configFile` and `oauth2.extraEnv`; credentials from existing secret (e.g. `oauth2-proxy-secret`).
