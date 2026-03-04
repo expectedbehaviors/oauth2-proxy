@@ -1,6 +1,6 @@
 # OAuth2-Proxy Helm Chart
 
-Baseline for [OAuth2-Proxy](https://github.com/oauth2-proxy/oauth2-proxy) with GitHub OAuth and 1Password-backed secrets. Uses upstream chart plus [expectedbehaviors/OnePasswordItem-helm](https://github.com/expectedbehaviors/OnePasswordItem-helm). No sensitive values in defaults.
+Baseline for [OAuth2-Proxy](https://github.com/oauth2-proxy/oauth2-proxy) with OIDC-first defaults and 1Password-backed secrets. Uses upstream chart plus [expectedbehaviors/OnePasswordItem-helm](https://github.com/expectedbehaviors/OnePasswordItem-helm). No sensitive values in defaults.
 
 ## Subcharts
 
@@ -79,7 +79,7 @@ Every value accepted by this chart is documented below. Values are grouped by su
 ## Features
 
 - **External auth** — Exposes `/oauth2/auth`, `/oauth2/start`, `/oauth2/callback` for ingress-nginx `global-auth-url` / `global-auth-signin`.
-- **GitHub OAuth** — Configure for GitHub (or other providers via config); allowlist via `OAUTH2_PROXY_GITHUB_USERS` or `OAUTH2_PROXY_EMAIL_DOMAINS`.
+- **OIDC-first provider model** — Baseline now uses `provider = "oidc"` with `oidc_issuer_url`; supports standards-compliant IdPs directly, and Plex via an OIDC bridge.
 - **Cookie security** — HttpOnly, Secure, SameSite, CSRF, refresh interval; set cookie domain for your domain (e.g. `.example.com`).
 
 ## Prerequisites
@@ -90,15 +90,59 @@ Every value accepted by this chart is documented below. Values are grouped by su
 
 - NGINX Ingress Controller with `global-auth-url` / `global-auth-signin` pointing at this service (e.g. `https://auth.example.com/oauth2/auth` and `.../oauth2/start`).
 - TLS for the auth host (ingress controller default cert or per-host cert).
-- GitHub OAuth App with callback URL matching your config (e.g. `https://auth.example.com/oauth2/callback`).
-- 1Password item for credentials (client-id, client-secret, cookie-secret) — see **GitHub OAuth + 1Password setup** below.
+- OIDC client with callback URL matching your config (e.g. `https://auth.example.com/oauth2/callback`).
+- 1Password item for credentials (client-id, client-secret, cookie-secret) — see **Plex-backed OIDC + 1Password setup** below.
+- For Plex login specifically: a Plex-to-OIDC bridge that exposes standard OIDC discovery, auth, token, userinfo, and JWKS endpoints.
 
-## GitHub OAuth + 1Password setup
+## Plex-backed OIDC + 1Password setup
 
-1. **Create a GitHub OAuth App** (GitHub → Settings → Developer settings → OAuth Apps). Set **Authorization callback URL** to match `redirect_url` in the chart config (e.g. `https://auth.example.com/oauth2/callback`). Copy Client ID and Client secret.
-2. **Generate a cookie secret:** e.g. `openssl rand -base64 32 | tr -d '\n'`. Use the raw output.
-3. **1Password item:** Create an item (e.g. under `Kubernetes`) with three fields that map to the Kubernetes Secret keys: **`client-id`**, **`client-secret`**, **`cookie-secret`**. Set `onepassworditem.items[].item` to the 1Password path and `name` to the Secret name used in `config.existingSecret`.
-4. **Chart config:** Set `config.existingSecret` to the Secret name created by onepassworditem. Ensure `redirect_url` in the configFile matches the GitHub OAuth App callback URL exactly.
+Plex does not currently expose a standards-compliant OIDC provider endpoint directly. To use Plex identity with oauth2-proxy (or apps that require OIDC), run Plex behind an OIDC bridge and point consumers to that bridge issuer.
+
+1. **Create or deploy an OIDC bridge for Plex**
+   - The bridge must expose standard OIDC endpoints, including:
+     - `/.well-known/openid-configuration`
+     - authorization endpoint
+     - token endpoint
+     - userinfo endpoint
+     - JWKS endpoint
+   - Example output issuer: `https://plex-oidc.example.com`.
+2. **Create an OIDC client in the bridge**
+   - Set callback/redirect URL to match chart config:
+     - `https://auth.example.com/oauth2/callback`
+   - Copy the client ID and client secret from the bridge.
+3. **Generate a cookie secret**
+   - `openssl rand -base64 32 | tr -d '\n'`
+4. **Create the 1Password item**
+   - Create an item (for example in `Kubernetes`) with fields mapped to:
+     - `client-id`
+     - `client-secret`
+     - `cookie-secret`
+   - Set `onepassworditem.items[].item` to that item path and `name` to the same secret used by `oauth2.config.existingSecret`.
+5. **Set chart values**
+   - `provider = "oidc"`
+   - `oidc_issuer_url = "https://plex-oidc.example.com"`
+   - `redirect_url = "https://auth.example.com/oauth2/callback"`
+   - Optionally set `scope`/claims handling in `oauth2.extraEnv` depending on bridge behavior.
+
+### What must exist before deploy
+
+| Resource to create | Why it is required | Example |
+|---|---|---|
+| Plex OIDC bridge service | Plex is not a native OIDC issuer for oauth2-proxy consumers | `https://plex-oidc.example.com` |
+| OIDC client registration in bridge | oauth2-proxy needs `client-id` and `client-secret` | callback `https://auth.example.com/oauth2/callback` |
+| 1Password item fields | onepassworditem syncs these into K8s Secret keys | `client-id`, `client-secret`, `cookie-secret` |
+| Kubernetes Secret target name | oauth2-proxy reads credentials from existing secret | `oauth2-proxy-secret` |
+
+### Feasibility matrix for other OIDC use-cases
+
+| Target service | Direct Plex as OIDC provider | Plex via OIDC bridge | Notes |
+|---|---|---|---|
+| oauth2-proxy (this chart) | No | Yes | Works when bridge exposes standard OIDC endpoints and claims used by oauth2-proxy. |
+| Portainer | No | Yes | Portainer requires OIDC/OAuth endpoints (auth, token, user data/JWKS). |
+| Argo CD | No | Yes | Argo CD OIDC (direct or via Dex) needs a standards-compliant issuer and callback mapping. |
+| Harbor | No | Yes | Harbor requires OIDC discovery and commonly `openid profile email` (+ groups if RBAC by group). |
+
+`Direct Plex` is marked `No` because this workflow depends on standards OIDC metadata and token validation endpoints. If Plex adds first-party OIDC issuer support later, the matrix can be updated.
 
 ## Usage
 
@@ -117,7 +161,7 @@ Override in your values (or Argo CD):
 | **Secrets** | `config.existingSecret` — name of Secret created by onepassworditem (e.g. `oauth2-proxy-secret`). |
 | **Cookie** | In configFile: `cookie_secure`, `cookie_httponly`, `cookie_expire`, `cookie_refresh`. |
 | **Ingress** | `ingress.hosts`, `ingress.path`, `ingress.annotations`. |
-| **Allowlist** | `extraEnv` e.g. `OAUTH2_PROXY_GITHUB_USERS` or `OAUTH2_PROXY_EMAIL_DOMAINS`. |
+| **Allowlist** | `extraEnv` e.g. `OAUTH2_PROXY_EMAIL_DOMAINS`, group filters, or issuer-specific claim checks. |
 
 **Pitfalls:** Keep `show_debug_on_error = false` in production. Reloader annotation `secret.reloader.stakater.com/reload` on the deployment ensures the pod restarts when the credentials secret changes.
 

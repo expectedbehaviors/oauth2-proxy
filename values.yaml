@@ -1,15 +1,17 @@
-# Baseline OAuth2-Proxy. Override redirect_url, cookie_domains, whitelist_domains, and 1Password item.
+# Baseline OAuth2-Proxy. OIDC-first defaults for external providers.
 oauth2:
   autoscaling:
     enabled: true
   config:
     existingSecret: oauth2-proxy-secret
     configFile: |-
-      provider = "github"
+      provider = "oidc"
+      oidc_issuer_url = "https://plex-oidc.example.com"
       proxy_prefix = "/oauth2"
       redirect_url = "https://auth.example.com/oauth2/callback"
       upstreams = [ "file:///dev/null", "file:///etc/oauth2-proxy/static/#/oauth2/static/" ]
       reverse_proxy = true
+      code_challenge_method = "S256"
       cookie_name = "_oauth2_proxy"
       cookie_domains = [ ".example.com" ]
       cookie_secure = true
